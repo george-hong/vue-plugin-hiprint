@@ -4,6 +4,86 @@
 ### 💐  同时自动更新 GitHub Pages 同步 Gitee;
 ### 💐  感谢各位贡献者的支持。 🔥
 
+## 0.0.57-beta20(2024-03-19)
+
+<details>
+  <summary>01. 🌈 新增支持 添加 barWidth、barAutoWidth 属性 </summary>
+
+  > ❗️ 表格中的条码暂未添加这两个属性，待测试验证后在添加
+
+  关于条码(barCode)，无论是 text[textType='barcode'] 元素还是 0.0.56 新添加的 barCode 元素，一直都有人反馈存在扫码枪无法识别的问题，关于这一问题近期深入研究了一下，以下是对该问题出现原因的猜测：
+
+  > 插件在使用 [JsBarcode](https://github.com/lindell/JsBarcode) 这个库生成条码时 [#L1972](https://github.com/CcSimple/vue-plugin-hiprint/blob/a3cdd93e6101c202bb55e23ce86028228d0687a3/src/hiprint/hiprint.bundle.js#L1972) 设置了 width 属性为 1，而生成的条码 svg 又宽度自适应为元素宽度，当元素宽度小于条码包所生成的 svg 宽度时，width 属性实际低于 1，导致扫码枪无法正常识别。
+
+  > 另外也有可能是元素、面板被设置了缩放，导致整体元素尺寸变小，导致条码单位宽度 width 小于 1。
+
+  > 浏览器打印预览的缩放也有可能导致这一问题的产生。
+
+  所以为此我们添加了 barWidth、barAutoWidth 两个属性，旨在解决这一问题。
+
+    1. 你可以通过设置 barWidth 以调整 text[textType='barcode'] 的单条宽度，以适应不同尺寸的需求（建议的值为 1）。
+
+    2. 同时也可以通过设置 barAutoWidth 使条码在渲染时以 svg 提供的最小尺寸自动增加宽度。
+     - 小于渲染最小尺寸时将自动增加宽度以保障扫码识别
+     - 大于此尺寸时不进行任何操作
+     - svg 最小尺寸与 barWidth 有密切关系
+
+  另外以 [bwip-js](https://github.com/metafloor/bwip-js) 渲染的条码 barCode 元素不支持设置单条宽度，它接收元素 width、height 后会自动渲染，还提供了一个 scale 的参数，用于控制渲染比例（bwip-js对于width这块的描述看了几遍没看懂），为了方便也复用了 barWidth 这个属性，通过改变 barWidth 也能调整条码的识别成功率。
+
+    写在最后：
+    关于条码无法正确识别问题，以上猜测和添加的属性欢迎大家积极测试和讨论，如有不对的地方欢迎指正。
+
+</details>
+
+## 0.0.57-beta18(2024-03-09)
+
+<details>
+  <summary>01. 🌈 新增支持 获取打印机纸张信息 Beta ❗️ </summary>
+  
+  当客户端运行在 window 系统环境时可以获取打印机纸张信息，你需要自行拉取最新客户端代码[electron-hiprint](https://github.com/CcSimple/electron-hiprint)，自行构建最新版本(v1.0.10)
+
+  > ❗️ node-hiprint-transit 中转暂未添加支持
+
+  ```js
+  // 获取指定打印机纸张信息
+  hiprint.getPaperInfo(printerName);
+  // 获取所有打印机纸张信息
+  hiprint.getPaperInfo();
+
+  // 获取纸张信息方法是异步请求的，没有返回值，你可以使用 hinnn.event.on("paperSizeInfo", () => {}) 监听数据返回
+  hinnn.event.on("paperSizeInfo", (paperSize) => {
+    console.log(paperSize);
+  });
+  // [
+  //   {
+  //       "PrinterName": "Microsoft Print to PDF",
+  //       "TaskNumber": 0, // 打印队列数
+  //       "Status": 0, // 设备状态码
+  //       "StatusMsg": "准备就绪（Ready）", // 设备状态信息
+  //       "PaperSizes": [
+  //           {
+  //               "Height": 1100, // 单位 mm
+  //               "Kind": 1,
+  //               "PaperName": "信纸",
+  //               "RawKind": 1,
+  //               "Width": 850 // 单位 mm
+  //           }
+  //       ]
+  //   }
+  // ]
+  ```
+</details>
+
+## 0.0.57-beta17(2024-03-08)
+
+<details>
+  <summary>01. ✨ 调整优化 表格添加 colgroup 解决列宽跨页不齐问题 </summary>
+</details>
+<details>
+  <summary>02. ✨ 调整优化 表格分组头、脚格式化函数自动判断 tr、td 包裹 </summary>
+  现在你可以直接 return content 内容、td(s) 字符串、tr(s) 字符串，插件将自动检测是否包裹 td、tr 标签，自动补全代码
+</details>
+
 ## 0.0.57-beta9
 
 <details>
@@ -132,6 +212,10 @@ hiprint.init({
   // 中转服务专有的 api，可获取所有连接中转服务的客户端 v1.0.7
   hiprint.getClients()
   hiwebSocket.getClients()
+  // 监听数据返回
+  hinnn.event.on("clientInfo", (clients) => {
+    console.log(clients);
+  });
   ```
 详情转至 [文档说明](./README.md#使用-中转服务-node-hiprint-transit-实现代理)
 </details>
@@ -147,10 +231,13 @@ hiprint.init({
 hiprint.getClientInfo()
 // or
 hiwebSocket.getClientInfo()
-```
-```js
-console.log(hiwebSocket.clientInfo)
 
+// 监听数据返回
+hinnn.event.on("clientInfo", (clientInfo) => {
+  console.log(clientInfo);
+});
+
+console.log(hiwebSocket.clientInfo)
 {
   arch: "x64",
   clientUrl: "http://192.168.0.2:17521",
